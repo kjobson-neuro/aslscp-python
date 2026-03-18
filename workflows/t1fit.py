@@ -6,19 +6,17 @@ import scipy
 import argparse
 import sys
 
-parser = argparse.ArgumentParser(description='get dcm parameters from the pipeline script')
+parser = argparse.ArgumentParser(description='T1 quantification from M0 IR data')
 
-# Set up parser for the parameters extracted from the dicom header
-parser.add_argument('-m0_ir', type=str, help="The path to the m0_ir file.")
-parser.add_argument('-stats', type=str, help="The path to the stats directory.")
-parser.add_argument('-m', type=str, help="The path to the mask file.")
-parser.add_argument('-out',type=str, help='The output directory.')
+# Set up parser for input arguments
+parser.add_argument('-m0_ir', type=str, required=True, help="The path to the m0_ir file.")
+parser.add_argument('-m', type=str, required=True, help="The path to the mask file.")
+parser.add_argument('-out', type=str, required=True, help='The output directory.')
 args = parser.parse_args()
 
 m0_ir_file = args.m0_ir
 mask = args.m
 out_dir = args.out
-stats_dir = args.stats
 
 ref_data = nib.load(m0_ir_file).get_fdata().astype(np.float64)
 
