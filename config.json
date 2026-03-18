@@ -1,0 +1,52 @@
+{
+    "config": {},
+    "inputs": {
+        "dicom_asl": {
+            "base": "file",
+            "location": {
+                "name": "SPIRAL_V24_GE_ASL.zip",
+                "path": "/flywheel/v0/input/dicom_asl/SPIRAL_V24_GE_ASL.zip"
+            },
+            "object": {
+                "size": 2952986,
+                "type": null,
+                "mimetype": "application/octet-stream",
+                "modality": null,
+                "classification": {},
+                "tags": [],
+                "info": {},
+                "zip_member_count": null,
+                "version": 1,
+                "file_id": "",
+                "origin": {
+                    "type": "user",
+                    "id": ""
+                }
+            }
+        },
+        "dicom_m0": {
+            "base": "file",
+            "location": {
+                "name": "SPIRAL_V24_GE_M0.zip",
+                "path": "/flywheel/v0/input/dicom_m0/SPIRAL_V24_GE_M0.zip"
+            },
+            "object": {
+                "size": 778032,
+                "type": null,
+                "mimetype": "application/octet-stream",
+                "modality": null,
+                "classification": {},
+                "tags": [],
+                "info": {},
+                "zip_member_count": null,
+                "version": 1,
+                "file_id": "",
+                "origin": {
+                    "type": "user",
+                    "id": ""
+                }
+            }
+        }
+    },
+    "destination": {}
+}

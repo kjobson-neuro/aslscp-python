@@ -1,0 +1,8 @@
+Primary motor
+Sensory
+Occipital
+Pre-frontal
+Pre-motor
+Posterior parietal
+Temporal
+

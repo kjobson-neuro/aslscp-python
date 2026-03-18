@@ -1,0 +1,10 @@
+Left Anterior Cerebral Artery 
+Right Anterior Cerebral Artery 
+Left Middle Cerebral Artery 
+Right Middle Cerebral Artery 
+Left Posterior Cerebral Artery 
+Right Posterior Cerebral Artery 
+Left Cerebellar Artery 
+Right Cerebellar Artery 
+Left Lateral Ventricle
+Right Lateral Ventricle
