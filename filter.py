@@ -302,13 +302,15 @@ def process_image(imgGroup, connection, config, mrdHeader):
         data *= maxVal/data.max()
         data = np.around(data)
         data = data.astype(np.int16)
-
+        
+#--------------KATIE'S SCRIPT GOES HERE-------------------
+    
     # Apply median filter
-    filterSize = mrdhelper.get_json_config_param(config, 'filterSize', default=0, type='int')
-    if filterSize > 0:
-        logging.info(f'Applying median filter with size {filterSize}')
-        data = median_filter(data, size=filterSize)
-        np.save(debugFolder + "/" + "imgFiltered.npy", data)
+    #filterSize = mrdhelper.get_json_config_param(config, 'filterSize', default=0, type='int')
+    #if filterSize > 0:
+    #    logging.info(f'Applying median filter with size {filterSize}')
+    #    data = median_filter(data, size=filterSize)
+    #    np.save(debugFolder + "/" + "imgFiltered.npy", data)
 
     if mrdhelper.get_json_config_param(config, 'options') == 'rgb':
         logging.info('Converting data into RGB')
