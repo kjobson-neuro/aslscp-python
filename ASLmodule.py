@@ -318,7 +318,7 @@ def process_image(imgGroup, connection, config, mrdHeader):
 
     if mrdhelper.something(mrdHeader, "name") == 'm0': #if the current image is M0
     # server already saved it via -s flag, just copy it to your persistent location
-        with ismrmrd.Dataset(M0file, connection.savedataGroup) as dset: # if that connection thing doesn't work we can just put a string
+        with ismrmrd.Dataset(M0file, connection.savedataGroup) as dset: # if that connection thing doesn't work we can just put a string 'dataset'
             dset.write_xml_header(mrdHeader)
             for img in imgGroup:
                 dset.append_image('images', img)
