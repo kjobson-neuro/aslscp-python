@@ -266,7 +266,7 @@ def process_image(imgGroup, connection, config, mrdHeader):
         os.makedirs(debugFolder)
         logging.debug("Created folder " + debugFolder + " for debug output files")
 
-    if not os.path.exists(aslFolder):
+    if not os.path.exists(aslFolder): # this part is probably not necessary anymore because it'll be in the same folder
         os.makedirs(aslFolder)
         logging.debug("Created folder " + aslFolder + " for debug output files")
 
@@ -315,7 +315,7 @@ def process_image(imgGroup, connection, config, mrdHeader):
 
 
      # Our Module #    
-
+    # these parts are also probably unnecessary
     if mrdhelper.something(mrdHeader, "name") == 'm0': #if the current image is M0
     # server already saved it via -s flag, just copy it to your persistent location
         with ismrmrd.Dataset(M0file, connection.savedataGroup) as dset: # if that connection thing doesn't work we can just put a string 'dataset'
