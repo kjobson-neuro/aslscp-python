@@ -16,9 +16,9 @@ from time import perf_counter
 
 # Folder for debug output files
 debugFolder = "/tmp/share/debug"
-# Folder for storing ASL data (M0)
-aslFolder = "/tmp/share/asl_data"
-M0file = aslFolder + "m0.h5"
+## Folder for storing ASL data (M0)
+# aslFolder = "/tmp/share/asl_data"
+# M0file = aslFolder + "m0.h5"
 
 def process(connection, config, mrdHeader):
     logging.info("Config: \n%s", config)
@@ -266,9 +266,6 @@ def process_image(imgGroup, connection, config, mrdHeader):
         os.makedirs(debugFolder)
         logging.debug("Created folder " + debugFolder + " for debug output files")
 
-    if not os.path.exists(aslFolder): # this part is probably not necessary anymore because it'll be in the same folder
-        os.makedirs(aslFolder)
-        logging.debug("Created folder " + aslFolder + " for debug output files")
 
 
     logging.debug("Processing data with %d images of type %s", len(imgGroup), imgGroup[0].data.dtype)
@@ -310,44 +307,44 @@ def process_image(imgGroup, connection, config, mrdHeader):
         data = np.around(data)
         data = data.astype(np.int16)
 
-
-
-
-
-     # Our Module #    
-    # these parts are also probably unnecessary
-    if mrdhelper.something(mrdHeader, "name") == 'm0': #if the current image is M0
-    # server already saved it via -s flag, just copy it to your persistent location
-        with ismrmrd.Dataset(M0file, connection.savedataGroup) as dset: # if that connection thing doesn't work we can just put a string 'dataset'
-            dset.write_xml_header(mrdHeader)
-            for img in imgGroup:
-                dset.append_image('images', img)
-        return []
-
-    if os.path.exists(M0file):
-        logging.info("Found M0 file")
-        # load M0 data from the ASL folder
-        with ismrmrd.Dataset(M0file, 'dataset', False) as dset:
-            m0Header = ismrmrd.xsd.CreateFromDocument(dset.read_xml_header())
-            for imgNum in range(0, dset.number_of_images(group)):
-                m0Images = dset.read_image(group, imgNum)       
-        logging.info("Imported M0 file")
+    # Split the data up into the 2 image types? Or would this be easier to do before numpy conversion?
 
         # generate perfusion map
         # i'm realizing that it might be better to work with the numpy arrays
         # in that case, we'd need to run the rest of process_image on both images to get the right format
         # maybe we would have to put this in the original process code? or write some functions
         perfusionMap = ASLscript(m0Images, m0Header, imgGroup, mrdHeader) #our code
+
+    # Our Module #    
+    # # these parts are also probably unnecessary
+    # if mrdhelper.something(mrdHeader, "name") == 'm0': #if the current image is M0
+    # # server already saved it via -s flag, just copy it to your persistent location
+    #     with ismrmrd.Dataset(M0file, connection.savedataGroup) as dset: # if that connection thing doesn't work we can just put a string 'dataset'
+    #         dset.write_xml_header(mrdHeader)
+    #         for img in imgGroup:
+    #             dset.append_image('images', img)
+    #     return []
+
+    # if os.path.exists(M0file):
+    #     logging.info("Found M0 file")
+    #     # load M0 data from the ASL folder
+    #     with ismrmrd.Dataset(M0file, 'dataset', False) as dset:
+    #         m0Header = ismrmrd.xsd.CreateFromDocument(dset.read_xml_header())
+    #         for imgNum in range(0, dset.number_of_images(group)):
+    #             m0Images = dset.read_image(group, imgNum)       
+    #     logging.info("Imported M0 file")
+
+
         
-        # clean up M0 file
-        os.remove(M0file) #double check this
-        logging.info("M0 file cleaned up")
+        # # clean up M0 file
+        # os.remove(M0file) #double check this
+        # logging.info("M0 file cleaned up")
         
         #return perfusionMap # not sure where to put this
     
-    else:
-        logging.warning("ASL received but no M0 found in %s", M0file)
-        #return []
+    # else:
+    #     logging.warning("ASL received but no M0 found in %s", M0file)
+    #     #return []
         
 
 
