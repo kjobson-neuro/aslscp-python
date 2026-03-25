@@ -16,9 +16,9 @@ from time import perf_counter
 
 # Folder for debug output files
 debugFolder = "/tmp/share/debug"
-## Folder for storing ASL data (M0)
-# aslFolder = "/tmp/share/asl_data"
-# M0file = aslFolder + "m0.h5"
+# Folder for storing ASL data (M0)
+aslFolder = "/tmp/share/asl_data"
+M0file = aslFolder + "m0.h5"
 
 def process(connection, config, mrdHeader):
     logging.info("Config: \n%s", config)
@@ -79,7 +79,7 @@ def process(connection, config, mrdHeader):
                 if item.image_series_index != currentSeries:
                     logging.info("Processing a group of images because series index changed to %d", item.image_series_index)
                     currentSeries = item.image_series_index
-                    image = process_image(imgGroup, connection, config, mrdHeader)
+                    image = process_image(imgGroup, connection, config, mrdHeader) # processes previous group of images
                     connection.send_image(image)
                     imgGroup = []
 
@@ -266,85 +266,76 @@ def process_image(imgGroup, connection, config, mrdHeader):
         os.makedirs(debugFolder)
         logging.debug("Created folder " + debugFolder + " for debug output files")
 
+    if not os.path.exists(aslFolder):
+        os.makedirs(aslFolder)
+        logging.debug("Created folder " + aslFolder + " for debug output files")
 
+    # We need to get the metadata from the first image to see if it's M0 or ASL
+    meta0 = ismrmrd.Meta.deserialize(imgGroup[0].attribute_string)
 
     logging.debug("Processing data with %d images of type %s", len(imgGroup), imgGroup[0].data.dtype)
 
-    # Note: The MRD Image class stores data as [cha z y x]
-
-    # Extract image data into a 5D array of size [img cha z y x]
-    data = np.stack([img.data                              for img in imgGroup])
-    head = [img.getHead()                                  for img in imgGroup]
-    meta = [ismrmrd.Meta.deserialize(img.attribute_string) for img in imgGroup]
-
-    # Reformat data to [y x z cha img], i.e. [row col] for the first two dimensions
-    data = data.transpose((3, 4, 2, 1, 0))
-
     # Display MetaAttributes for first image
-    logging.debug("MetaAttributes[0]: %s", ismrmrd.Meta.serialize(meta[0]))
+    logging.debug("MetaAttributes[0]: %s", ismrmrd.Meta.serialize(meta0))
 
     # Optional serialization of ICE MiniHeader
-    if 'IceMiniHead' in meta[0]:
-        logging.debug("IceMiniHead[0]: %s", base64.b64decode(meta[0]['IceMiniHead']).decode('utf-8'))
+    if 'IceMiniHead' in meta0:
+        logging.debug("IceMiniHead[0]: %s", base64.b64decode(meta0['IceMiniHead']).decode('utf-8'))
 
-    logging.debug("Original image data is size %s" % (data.shape,))
-    np.save(debugFolder + "/" + "imgOrig.npy", data)
 
-    if mrdhelper.get_json_config_param(config, 'options') == 'complex':
-        # Complex images are requested
-        data = data.astype(np.complex64)
-        maxVal = data.max()
-    else:
-        # Determine max value (12 or 16 bit)
-        BitsStored = 12
-        if (mrdhelper.get_userParameterLong_value(mrdHeader, "BitsStored") is not None):
-            BitsStored = mrdhelper.get_userParameterLong_value(mrdHeader, "BitsStored")
-        maxVal = 2**BitsStored - 1
 
-        # Normalize and convert to int16
-        data = data.astype(np.float64)
-        data *= maxVal/data.max()
-        data = np.around(data)
-        data = data.astype(np.int16)
 
-    # Split the data up into the 2 image types? Or would this be easier to do before numpy conversion?
+
+
+
+
+
+     # Our Module #    
+     # If we need to make it adaptable for different sequences, you'd want to put another if statement:
+        # if current image is M0 and no ASL exists, save M0
+        # if current image is M0 and ASL exists, process data
+        # if current image is ASL and no M0 exists, save ASL
+        # if current image is ASL and M0 exists, process data
+    # You also might not be able to specifically grab the last 2-3 characters of the sequence description
+
+    if meta0['SequenceDescription'][-2] == 'M0': #if the current image is M0
+    # server already saved it via -s flag, just copy it to your persistent location
+        with ismrmrd.Dataset(M0file, connection.savedataGroup) as dset: # if that connection thing doesn't work we can just put a string 'dataset'
+            dset.write_xml_header(mrdHeader) # mrdHeader (overall sequence header) might not actually be what you want to save, might want to save meta0
+            # if mrdHeader ends up having all the info, then we don't have to save it, we can just use the 2nd one from ASL
+            for img in imgGroup:
+                dset.append_image('images', img)
+        logging.info("M0 image saved")
+        return []
+
+    if os.path.exists(M0file): # should we also confirm that the last 3 characters are ASL?
+        logging.info("Found M0 file")
+        # load M0 data from the ASL folder
+        with ismrmrd.Dataset(M0file, 'dataset', False) as dset:
+            m0Header = ismrmrd.xsd.CreateFromDocument(dset.read_xml_header())
+            m0Images = [dset.read_image('images', imgNum) for imgNum in range(0, dset.number_of_images('images'))]
+        
+        logging.info("Imported M0 file")
+
+        [datam0, headm0, metam0]=mrd2np(m0Images, config, m0Header) # config is the same
+        [dataASL, headASL, metaASL]=mrd2np(imgGroup, config, mrdHeader) 
+
 
         # generate perfusion map
         # i'm realizing that it might be better to work with the numpy arrays
-        # in that case, we'd need to run the rest of process_image on both images to get the right format
-        # maybe we would have to put this in the original process code? or write some functions
-        perfusionMap = ASLscript(m0Images, m0Header, imgGroup, mrdHeader) #our code
+        # right now your code is not sending them
+        CBFmap = ASLscript(datam0, m0Header, dataASL, mrdHeader) #not sure if/how meta gets used, and if we should use the shared mrd header or the processed "head"
+        # if you do end up only need mrdHeader, you don't need m0Header too, as they will be the same
 
-    # Our Module #    
-    # # these parts are also probably unnecessary
-    # if mrdhelper.something(mrdHeader, "name") == 'm0': #if the current image is M0
-    # # server already saved it via -s flag, just copy it to your persistent location
-    #     with ismrmrd.Dataset(M0file, connection.savedataGroup) as dset: # if that connection thing doesn't work we can just put a string 'dataset'
-    #         dset.write_xml_header(mrdHeader)
-    #         for img in imgGroup:
-    #             dset.append_image('images', img)
-    #     return []
-
-    # if os.path.exists(M0file):
-    #     logging.info("Found M0 file")
-    #     # load M0 data from the ASL folder
-    #     with ismrmrd.Dataset(M0file, 'dataset', False) as dset:
-    #         m0Header = ismrmrd.xsd.CreateFromDocument(dset.read_xml_header())
-    #         for imgNum in range(0, dset.number_of_images(group)):
-    #             m0Images = dset.read_image(group, imgNum)       
-    #     logging.info("Imported M0 file")
-
-
+        # clean up M0 file
+        os.remove(M0file) #double check this
+        logging.info("M0 file cleaned up")
         
-        # # clean up M0 file
-        # os.remove(M0file) #double check this
-        # logging.info("M0 file cleaned up")
-        
-        #return perfusionMap # not sure where to put this
+        #return CBFmap # not sure where to put this
     
-    # else:
-    #     logging.warning("ASL received but no M0 found in %s", M0file)
-    #     #return []
+    else:
+        logging.warning("ASL received but no M0 found in %s", M0file)
+        return []
         
 
 
@@ -356,6 +347,9 @@ def process_image(imgGroup, connection, config, mrdHeader):
     # data = maxVal-data
     # data = np.abs(data)
     # np.save(debugFolder + "/" + "imgInverted.npy", data)
+
+    data=CBFmap # from here on out
+    # i don't think you need to use M0 or ASL anymore, but we will make sure
 
     if mrdhelper.get_json_config_param(config, 'options') == 'rgb':
         logging.info('Converting data into RGB')
@@ -504,3 +498,37 @@ def create_example_roi(img_size):
 
     roi = mrdhelper.create_roi(x, y, rgb, thickness, style, visibility)
     return roi
+
+# Convert MRD format to numpy for use in processing # Alternatively, could convert to dicom, I think
+def mrd2np(imgGroup, config, mrdHeader):
+    # Note: The MRD Image class stores data as [cha z y x]
+
+    # Extract image data into a 5D array of size [img cha z y x]
+    data = np.stack([img.data                              for img in imgGroup])
+    head = [img.getHead()                                  for img in imgGroup]
+    meta = [ismrmrd.Meta.deserialize(img.attribute_string) for img in imgGroup]
+
+    # Reformat data to [y x z cha img], i.e. [row col] for the first two dimensions
+    data = data.transpose((3, 4, 2, 1, 0))
+
+    logging.debug("Original image data is size %s" % (data.shape,)) #we could maybe move this, not sure
+    np.save(debugFolder + "/" + "imgOrig.npy", data)
+
+    if mrdhelper.get_json_config_param(config, 'options') == 'complex': # i can't imagine we will need this, if so we can get rid of "config"
+        # Complex images are requested
+        data = data.astype(np.complex64)
+        maxVal = data.max()
+    else:
+        # Determine max value (12 or 16 bit)
+        BitsStored = 12
+        if (mrdhelper.get_userParameterLong_value(mrdHeader, "BitsStored") is not None):
+            BitsStored = mrdhelper.get_userParameterLong_value(mrdHeader, "BitsStored")
+        maxVal = 2**BitsStored - 1
+
+        # Normalize and convert to int16
+        data = data.astype(np.float64)
+        data *= maxVal/data.max()
+        data = np.around(data)
+        data = data.astype(np.int16)
+
+    return data, head, meta
